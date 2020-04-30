@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using Newtonsoft.Json.Linq;
+using RestSharp;
 
 namespace MmgSlnGen
 {
@@ -35,9 +39,19 @@ namespace MmgSlnGen
                     $"\t\t<ProjectReference Include = \"..\\{projectReference.Name}\\{projectReference.Name}.csproj\" />\n");
             }
 
+            projectFileContent.Append("\t</ItemGroup>\n" + "\t<ItemGroup>\n");
+            
+            var refs = GetNuGetRefs(100);
+
+            foreach (var valueTuple in refs)
+            {
+                var str = $"<PackageReference Include=\"{valueTuple.l}\" Version=\"{valueTuple.r}\" />";
+                projectFileContent.Append(str);
+            }
+
             projectFileContent.Append("\t</ItemGroup>\n" +
                                       "</Project>\n");
-
+            
             Directory.CreateDirectory(projectDir);
             File.WriteAllText(Path.Combine(dir, project.ProjectPath), projectFileContent.ToString());
             for (var i = 1; i <= project.ClassesPerProject; i++)
@@ -130,6 +144,23 @@ namespace MmgSlnGen
                                                                                $"\tpublic class Class{i:D3} {{}}\n" +
                                                                                "}\n");
             }
+        }
+
+        private static List<(JToken l, JToken r)> GetNuGetRefs(int count)
+        {
+            var client = new RestClient("https://api.nuget.org/v3/");
+            var request = new RestRequest("catalog0/page1.json", DataFormat.Json);
+
+            var response = client.Get(request);
+            var jobj = JObject.Parse(response.Content);
+            var items = jobj.GetValue("items");
+
+            return items.Select(jToken =>
+            {
+                var l = jToken.Children().OfType<JProperty>().First(x => x.Name == "nuget:id").Value;
+                var r = jToken.Children().OfType<JProperty>().First(x => x.Name == "nuget:version").Value;
+                return (l, r);
+            }).Take(count).ToList();
         }
     }
 }

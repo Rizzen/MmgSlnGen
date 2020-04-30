@@ -17,7 +17,6 @@ namespace MmgSlnGen
             var destinationDir = args[1];
             var projectCount = int.Parse(args[2]);
             var classesPerProject = int.Parse(args[3]);
-
             const string solutionName = "TestSolution";
             var solutionDir = Path.Combine(destinationDir, solutionName);
             if (Directory.Exists(solutionDir))
